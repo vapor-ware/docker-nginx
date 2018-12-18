@@ -1,0 +1,38 @@
+
+pipeline {
+
+    agent any
+
+    triggers {
+        upstream(upstreamProjects: 'vapor-ware/buildpack-deps/master', threshold: hudson.model.Result.SUCCESS)
+    }
+
+    stages {
+        stage('Build') {
+            parallel {
+                stage('Build nginx:mainline') {
+                    steps {
+                        sh "docker build -t vaporio/nginx:mainline -t vaporio/nginx:1.15 mainline/bionic"
+                    }
+                }
+                stage('Build nginx:stable') {
+                    steps {
+                        sh "docker build -t vaporio/nginx:stable -t vaporio/nginx:1 -t vaporio/nginx:1.14 stable/bionic"
+                    }
+                }
+            }
+        }
+
+        stage('Publish') {
+            steps {
+                withDockerRegistry(registry: [credentialsId: 'vio-docker-hub']) {
+                    sh "docker push vaporio/nginx:stable"
+                    sh "docker push vaporio/nginx:1"
+                    sh "docker push vaporio/nginx:1.14"
+                    sh "docker push vaporio/nginx:mainline"
+                    sh "docker push vaporio/nginx:1.15"
+                }
+            }
+        }
+    }
+}
